@@ -1,0 +1,114 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAuth()     { return request.auth != null; }
+    function uid()        { return request.auth.uid; }
+    function role()       { return get(/databases/$(database)/documents/users/$(uid())).data.role; }
+    function isAdmin()    { return isAuth() && role() == 'it_admin'; }
+    function isManager()  { return isAuth() && role() in ['it_admin','marketing_manager']; }
+    function isAssignedApprover() { return isAuth() && resource.data.currentApprover == uid(); }
+    function isListedApprover() {
+      return isAuth()
+        && resource.data.approverIds is list
+        && resource.data.approverIds.hasAny([request.auth.uid]);
+    }
+    function hasActedAsApprover() {
+      return isAuth()
+        && resource.data.actedApproverIds is list
+        && resource.data.actedApproverIds.hasAny([request.auth.uid]);
+    }
+    function validProjectStatus() {
+      return request.resource.data.projectStatus in [
+        'For Design',
+        'For Occular',
+        'For Dealer Approval',
+        'Processing Budget Approval (Document, PFF, BRF, & MAF)',
+        'For Fabrication',
+        'Installation Schedule',
+        'Installed',
+        'Completed'
+      ];
+    }
+    function projectStatusChanged() {
+      return request.resource.data.projectStatus != resource.data.projectStatus;
+    }
+    function canInitializeProjectStatusOnFinalApproval() {
+      return isAssignedApprover()
+        && resource.data.currentApprovalStage == 'marketing_director'
+        && request.resource.data.status == 'Approved'
+        && request.resource.data.projectStatus == 'For Design';
+    }
+    function canUpdateProjectStatusAsManager() {
+      return role() == 'marketing_manager' && validProjectStatus();
+    }
+    function projectStatusUpdateAllowed() {
+      return !projectStatusChanged()
+        || canInitializeProjectStatusOnFinalApproval()
+        || canUpdateProjectStatusAsManager();
+    }
+
+    match /users/{userId} {
+      allow read:   if isAuth() && (uid() == userId || isManager());
+      allow create: if isAuth();
+      allow update: if isAdmin() || uid() == userId;
+      allow delete: if isAdmin();
+    }
+
+    match /jobOrderRequests/{id} {
+      allow read:   if isAuth() && (
+        isManager()
+        || resource.data.currentApprover == request.auth.uid
+        || isListedApprover()
+        || hasActedAsApprover()
+        || resource.data.requestedBy == request.auth.uid
+      );
+      allow create: if isAuth();
+      allow update: if isAuth() && (
+        (
+          isManager() ||
+          resource.data.currentApprover == request.auth.uid ||
+          (resource.data.requestedBy == request.auth.uid && resource.data.status in ['For Approval','Draft'])
+        )
+        && projectStatusUpdateAllowed()
+      );
+      allow delete: if isManager();
+    }
+
+    match /rackInventory/{id} {
+      allow read:  if isAuth();
+      allow write: if isManager();
+    }
+
+    match /installations/{id} {
+      allow read:  if isAuth();
+      allow write: if isManager() || role() == 'technician';
+    }
+
+    match /approverAssignments/{id} {
+      allow read:  if isAuth();
+      allow write: if isAdmin();
+    }
+
+    match /systemSettings/{id} {
+      allow read:  if isAuth();
+      allow write: if isAdmin();
+    }
+
+    match /_sequences/{id} {
+      allow read, write: if isAuth();
+    }
+
+    match /auditLogs/{id} {
+      allow read:   if isManager();
+      allow create: if isAuth();
+      allow update, delete: if false;
+    }
+
+    match /notifications/{id} {
+      allow read:   if isAuth() && resource.data.userId == uid();
+      allow create: if isAuth();
+      allow update: if isAuth() && resource.data.userId == uid();
+      allow delete: if isAuth() && resource.data.userId == uid();
+    }
+  }
+}
