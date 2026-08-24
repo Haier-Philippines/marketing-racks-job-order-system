@@ -188,7 +188,7 @@ function buildApprovalStateFromWorkflow(steps: ApprovalStep[]): Partial<JobOrder
     payload.currentApprovalStage = nextPendingStep.stage
     payload.currentPMCategory = nextPendingStep.stage === 'pm'
       ? nextPendingStep.pmCategory
-      : null
+      : undefined
   } else {
     // Fully approved (or no pending step remains): clear the "current"
     // pointers instead of leaving them stuck on the last approver.

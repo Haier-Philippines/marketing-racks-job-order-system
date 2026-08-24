@@ -283,13 +283,13 @@ approverIds?: string[]
 actedApproverIds?: string[]
 
 // UID of the person currently expected to approve
-currentApprover?: string
+currentApprover?: string | null
 
 // Current approval stage
-currentApprovalStage?: ApprovalStage
+currentApprovalStage?: ApprovalStage | null
 
 // PM category currently awaiting approval
-currentPMCategory?: PMCategory
+currentPMCategory?: PMCategory | null
 
 approvers: ApprovalStep[]
   comments:         RequestComment[]
