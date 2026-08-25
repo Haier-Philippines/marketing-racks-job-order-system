@@ -14,9 +14,9 @@ import { toast } from 'sonner'
 
 const NAV = [
   { href: '/approver/dashboard',     icon: LayoutDashboard, label: 'Dashboard'      },
-  { href: '/approver/for-approval',  icon: CheckSquare,     label: 'For My Approval'},
+  { href: '/approver/for-approval',  icon: CheckSquare,     label: 'My Approval'},
   { href: '/approver/all-requests',  icon: ClipboardList,   label: 'All Requests'   },
-  { href: '/approver/my-approvals',  icon: CheckCircle,     label: 'My Approvals'   },
+  // { href: '/approver/my-approvals',  icon: CheckCircle,     label: 'My Approvals'   },
   { href: '/approver/reports',       icon: BarChart3,       label: 'Reports'        },
   { href: '/approver/profile',       icon: User,            label: 'Profile'        },
 ]

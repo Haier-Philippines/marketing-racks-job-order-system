@@ -200,7 +200,7 @@ export default function CreateRequestPage() {
 
   return (
     <EmployeeLayout>
-      <div className=" w-full mx-auto">
+      <div className="max-w-5xl mx-auto">
         <div className="flex items-center gap-3 mb-5">
           <button onClick={() => step > 1 ? setStep(s=>s-1) : router.push('/employee/my-requests')} className="btn-icon">
             <ChevronLeft size={18} />

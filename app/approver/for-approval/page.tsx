@@ -65,8 +65,8 @@ export default function ForApprovalPage() {
       <div className="space-y-6 w-full px-6 md:px-8 lg:px-10">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="page-title">For My Approval</h1>
-            <p className="text-sm text-slate-500 mt-0.5">{reqs.length} requests waiting for your review</p>
+            <h1 className="page-title">My Approval</h1>
+             <p className="text-sm text-slate-500 mt-0.5">Your approval history and pending actions</p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={() => setShowFilters(p => !p)}

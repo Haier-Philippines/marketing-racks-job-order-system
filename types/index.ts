@@ -54,7 +54,7 @@ export const PRODUCT_CATEGORY_OPTIONS = [
   'Freezer',
   'WM',
   'AC',
-  'PM CAC',
+  'CAC',
   'TV',
   'KDA',
   'Water Solutions',
@@ -124,7 +124,7 @@ export const PM_DEPARTMENT_BY_CATEGORY: Record<PMCategory, Department> = {
 
 export const RACK_CATEGORIES = [
   'TV','Refrigerator','Air Conditioner','Washing Machine','KDA',
-  'Single Sided Rack','Double Sided Rack','End Cap Rack','Wall Mounted Rack','Other'
+  'CAC','Water Solutions'
 ] as const
 export type RackCategory = typeof RACK_CATEGORIES[number]
 

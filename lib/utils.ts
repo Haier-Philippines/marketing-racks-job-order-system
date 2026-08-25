@@ -41,6 +41,7 @@ export const PRIORITY_CONFIG: Record<Priority, { bg:string; text:string }> = {
 export function formatDate(iso: string, fmt = 'MMM D, YYYY') {
   if (!iso) return '—'
   const d = new Date(iso)
+  if (isNaN(d.getTime())) return '—'
   const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]
   return `${m} ${d.getDate()}, ${d.getFullYear()}`
 }
@@ -48,6 +49,7 @@ export function formatDate(iso: string, fmt = 'MMM D, YYYY') {
 export function formatDateTime(iso: string) {
   if (!iso) return '—'
   const d = new Date(iso)
+  if (isNaN(d.getTime())) return '—'
   return `${formatDate(iso)} ${d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true })}`
 }
 

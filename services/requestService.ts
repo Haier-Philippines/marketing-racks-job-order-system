@@ -19,6 +19,18 @@ import { notificationService } from './notificationService'
 function ts(v: any): string {
   if (!v) return ''
   if (v instanceof Timestamp) return v.toDate().toISOString()
+
+    // Duck-type check: kung Timestamp-like object siya (may .toDate() method
+  // o .seconds property) kahit na-fail yung instanceof check dahil sa
+  // magkaibang bundled copy ng firebase SDK sa client/server chunks.
+  if (typeof v === 'object' && typeof v.toDate === 'function') {
+    return v.toDate().toISOString()
+  }
+  if (typeof v === 'object' && typeof v.seconds === 'number') {
+    return new Date(v.seconds * 1000 + Math.floor((v.nanoseconds ?? 0) / 1e6)).toISOString()
+  }
+
+  if (typeof v === 'string') return v
   return String(v)
 }
 
@@ -134,14 +146,51 @@ async function nextJobOrderNo(): Promise<string> {
   return `MR-${year}-${String(num).padStart(4, '0')}`
 }
 
+// function sanitizeFirestoreValue(value: unknown): unknown {
+//   if (value === undefined) return undefined
+
+//   if (Array.isArray(value)) {
+//     const cleaned = value
+//       .map(item => sanitizeFirestoreValue(item))
+//       .filter(item => item !== undefined)
+//     return cleaned
+//   }
+
+//   if (value !== null && typeof value === 'object') {
+//     const entry = value as Record<string, unknown>
+//     const cleaned: Record<string, unknown> = {}
+
+//     for (const [key, nestedValue] of Object.entries(entry)) {
+//       const sanitizedValue = sanitizeFirestoreValue(nestedValue)
+//       if (sanitizedValue !== undefined) {
+//         cleaned[key] = sanitizedValue
+//       }
+//     }
+
+//     return cleaned
+//   }
+
+//   return value
+// }
+
+function isFirestoreSentinel(value: unknown): boolean {
+  // Firestore FieldValue sentinels (serverTimestamp(), increment(), arrayUnion(),
+  // arrayRemove(), deleteField()) carry an internal `_methodName` marker.
+  // We must NOT recurse into these via Object.entries() — doing so strips
+  // the sentinel and replaces it with a plain empty object, which silently
+  // breaks serverTimestamp() writes (this was the root cause of the
+  // "undefined NaN, NaN" / missing date bugs).
+  return typeof value === 'object' && value !== null && '_methodName' in (value as any)
+}
+
 function sanitizeFirestoreValue(value: unknown): unknown {
   if (value === undefined) return undefined
+  if (isFirestoreSentinel(value)) return value
 
   if (Array.isArray(value)) {
-    const cleaned = value
+    return value
       .map(item => sanitizeFirestoreValue(item))
       .filter(item => item !== undefined)
-    return cleaned
   }
 
   if (value !== null && typeof value === 'object') {
