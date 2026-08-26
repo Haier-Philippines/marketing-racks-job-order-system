@@ -8,11 +8,11 @@ import { cn, getInitials } from '@/lib/utils'
 import { ROLE_LABELS } from '@/types'
 import {
   LayoutDashboard, CheckSquare, ClipboardList, CheckCircle,
-  BarChart3, User, LogOut, Bell,
+  BarChart3, User, LogOut, Bell, Package,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-const NAV = [
+const BASE_NAV = [
   { href: '/approver/dashboard',     icon: LayoutDashboard, label: 'Dashboard'      },
   { href: '/approver/for-approval',  icon: CheckSquare,     label: 'My Approval'},
   { href: '/approver/all-requests',  icon: ClipboardList,   label: 'All Requests'   },
@@ -25,6 +25,16 @@ export default function ApproverSidebar() {
   const pathname  = usePathname()
   const { user }  = useAuthStore()
   const { count } = useNotifStore()
+
+  // Only Marketing Manager gets access to Racks Inventory management —
+  // inserted right after "All Requests" to keep it near related content.
+  const NAV = user?.role === 'marketing_manager'
+    ? [
+        ...BASE_NAV.slice(0, 3),
+        { href: '/inventory', icon: Package, label: 'Racks Inventory' },
+        ...BASE_NAV.slice(3),
+      ]
+    : BASE_NAV
 
   const handleLogout = async () => {
     await authService.logout()

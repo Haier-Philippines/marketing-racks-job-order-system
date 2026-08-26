@@ -2,6 +2,7 @@
 // app/inventory/page.tsx
 import { useEffect, useState, useCallback } from 'react'
 import AppLayout from '@/components/shared/AppLayout'
+import ApproverLayout from '@/components/shared/ApproverLayout'
 import { PageHeader, StatusBadge, SearchBar, EmptyState, TableSkeleton, Pagination, ConfirmDialog, Modal } from '@/components/ui/index'
 import { inventoryService } from '@/services/index'
 import { useAuthStore } from '@/stores'
@@ -27,6 +28,11 @@ const EMPTY_FORM: InventoryForm = {
 export default function InventoryPage() {
   const { user } = useAuthStore()
   const isAdmin = user?.role === 'it_admin' || user?.role === 'marketing_manager'
+
+  // Marketing Manager navigates within the approver portal (its own
+  // sidebar/topbar), while IT Admin uses the full admin layout — pick the
+  // matching shell so each role only sees navigation relevant to them.
+  const Layout = user?.role === 'marketing_manager' ? ApproverLayout : AppLayout
 
   const [racks, setRacks]         = useState<RackInventory[]>([])
   const [loading, setLoading]     = useState(true)
@@ -92,8 +98,8 @@ export default function InventoryPage() {
 
   const conditionColor = { Good: 'text-green-600', Fair: 'text-amber-600', Poor: 'text-red-600' }
 
-  return (
-    <AppLayout>
+    return (
+    <Layout>
       <div className="space-y-4">
         <PageHeader
           title="Racks Inventory"
@@ -308,6 +314,6 @@ export default function InventoryPage() {
 
       <ConfirmDialog open={!!deleteId} onClose={() => setDeleteId(null)} onConfirm={handleDelete}
         title="Delete Rack" message="This will permanently remove the rack from inventory." danger loading={deleting} />
-    </AppLayout>
+        </Layout>
   )
 }
