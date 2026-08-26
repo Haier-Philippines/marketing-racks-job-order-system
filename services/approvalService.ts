@@ -282,7 +282,7 @@ export const approvalService = {
    * Get all requests visible to this approver (all statuses)
    */
   // 
-  async getAllForApprover(
+ async getAllForApprover(
   approverId: string,
   approverRole: UserRole
 ): Promise<JobOrderRequest[]> {
@@ -294,7 +294,15 @@ export const approvalService = {
   }
 
   try {
-    return await requestService.getVisibleForApprover({ approverId })
+    const [visible, history] = await Promise.all([
+      requestService.getVisibleForApprover({ approverId }),
+      requestService.getMyActionHistoryForApprover({ approverId }),
+    ])
+
+    const byId = new Map<string, JobOrderRequest>()
+    ;[...visible, ...history].forEach(r => byId.set(r.id, r))
+
+    return [...byId.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   } catch (error: any) {
     console.error('[approvalService.getAllForApprover] failed:', {
       approverId,
@@ -496,47 +504,50 @@ async getMyApprovals(
    * Dashboard stats for this approver
    */
   async getDashboardStats(approverId: string, approverRole: UserRole) {
-    const [pending, all] = await Promise.all([
-      this.getForMyApproval(approverId, approverRole),
-      this.getAllForApprover(approverId, approverRole),
-    ])
+  const [pending, all] = await Promise.all([
+    this.getForMyApproval(approverId, approverRole),
+    this.getAllForApprover(approverId, approverRole),
+  ])
 
-    const now       = dayjs()
-    const thisMonth = all.filter(r => dayjs(r.createdAt).month() === now.month() && dayjs(r.createdAt).year() === now.year())
+  const now       = dayjs()
+  const thisMonth = all.filter(r => dayjs(r.createdAt).month() === now.month() && dayjs(r.createdAt).year() === now.year())
 
-    const approved   = all.filter(r => r.approvers?.some(a => a.approverId === approverId && a.action === 'Approved'))
-    const rejected   = all.filter(r => r.approvers?.some(a => a.approverId === approverId && a.action === 'Rejected'))
-    const inProgress = all.filter(r => r.status === 'In Progress')
-    const completed  = all.filter(r => r.status === 'Completed')
+  const approved   = all.filter(r => r.approvers?.some(a => a.approverId === approverId && a.action === 'Approved'))
+  const rejected   = all.filter(r => r.approvers?.some(a => a.approverId === approverId && a.action === 'Rejected'))
 
-    // Monthly trend (last 6 months)
-    const monthlyTrend = Array.from({ length: 6 }, (_, i) => {
-      const m = now.subtract(5 - i, 'month')
-      return {
-        label:    m.format('MMM D'),
-        requests: all.filter(r => dayjs(r.createdAt).month() === m.month() && dayjs(r.createdAt).year() === m.year()).length,
-        approved: approved.filter(r => dayjs(r.createdAt).month() === m.month()).length,
-      }
-    })
+  const inProgress = all.filter(r =>
+    r.status === 'Approved' && r.projectStatus && r.projectStatus !== 'Completed'
+  )
 
-    const byStatus = [
-      { name: 'For Approval', value: pending.length,    pct: 0 },
-      { name: 'In Progress',  value: inProgress.length, pct: 0 },
-      { name: 'Approved',     value: approved.length,   pct: 0 },
-      { name: 'Rejected',     value: rejected.length,   pct: 0 },
-    ]
-    const total = byStatus.reduce((s, b) => s + b.value, 0)
-    byStatus.forEach(b => { b.pct = total > 0 ? Math.round(b.value / total * 100) : 0 })
+  const completed = all.filter(r => r.projectStatus === 'Completed')
 
+  const monthlyTrend = Array.from({ length: 6 }, (_, i) => {
+    const m = now.subtract(5 - i, 'month')
     return {
-      forMyApproval:    pending.length,
-      approvedThisMonth:approved.length,
-      inProgress:       inProgress.length,
-      completed:        completed.length,
-      totalAll:         all.length,
-      monthlyTrend,
-      byStatus,
-      recentRequests:   all.slice(0, 6),
+      label:    m.format('MMM D'),
+      requests: all.filter(r => dayjs(r.createdAt).month() === m.month() && dayjs(r.createdAt).year() === m.year()).length,
+      approved: approved.filter(r => dayjs(r.createdAt).month() === m.month()).length,
     }
-  },
+  })
+
+  const byStatus = [
+    { name: 'For Approval', value: pending.length,    pct: 0 },
+    { name: 'In Progress',  value: inProgress.length, pct: 0 },
+    { name: 'Approved',     value: approved.length,   pct: 0 },
+    { name: 'Rejected',     value: rejected.length,   pct: 0 },
+  ]
+  const total = byStatus.reduce((s, b) => s + b.value, 0)
+  byStatus.forEach(b => { b.pct = total > 0 ? Math.round(b.value / total * 100) : 0 })
+
+  return {
+    forMyApproval:    pending.length,
+    approvedThisMonth:approved.length,
+    inProgress:       inProgress.length,
+    completed:        completed.length,
+    totalAll:         all.length,
+    monthlyTrend,
+    byStatus,
+    recentRequests:   all.slice(0, 6),
+  }
+},
 }

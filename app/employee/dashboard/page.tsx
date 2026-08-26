@@ -39,9 +39,23 @@ export default function EmployeeDashboard() {
     load()
   }, [user])
 
-  const forApproval = myReqs.filter(r => r.status === 'For Approval').length
-  const inProgress  = myReqs.filter(r => r.status === 'In Progress').length
-  const completed   = myReqs.filter(r => r.status === 'Completed').length
+  // const forApproval = myReqs.filter(r => r.status === 'For Approval').length
+  // const inProgress  = myReqs.filter(r => r.status === 'In Progress').length
+  // const completed   = myReqs.filter(r => r.status === 'Completed').length
+  
+  // Requests still going through the approval chain
+const forApproval = myReqs.filter(r => r.status === 'For Approval').length
+
+// Fully approved by all approvers, and the project itself is now underway
+// (projectStatus has been set but hasn't reached "Completed" yet)
+const inProgress = myReqs.filter(r =>
+  r.status === 'Approved' && r.projectStatus && r.projectStatus !== 'Completed'
+).length
+
+// Source of truth for "done" is projectStatus === 'Completed', set by
+// Marketing once the project itself is finished — not the approval status.
+const completed = myReqs.filter(r => r.projectStatus === 'Completed').length
+
   const recent      = myReqs.slice(0, 5)
 
   // Monthly chart data

@@ -208,90 +208,51 @@ export default function NewJobOrderPage() {
   // PHOTO UPLOAD
   // ============================================================
 
-  const handlePhotoSelect = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
+    const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-
     if (!file) return
-
-    if (!['image/png', 'image/jpg', 'image/jpeg'].includes(file.type)) {
-      toast.error('Only PNG/JPG images allowed')
-      return
+    if (!['image/png','image/jpg','image/jpeg'].includes(file.type)) {
+      toast.error('Only PNG/JPG images allowed'); return
     }
-
-    if (file.size > 10 * 1024 * 1024) {
-      toast.error('Image must be under 10 MB')
-      return
-    }
+    if (file.size > 10 * 1024 * 1024) { toast.error('Image must be under 10 MB'); return }
 
     setPhotoUploading(true)
-
     try {
       const reader = new FileReader()
-
-      reader.onload = (event) => {
-        setPhotoPreview(event.target?.result as string)
-      }
-
+      reader.onload = ev => setPhotoPreview(ev.target?.result as string)
       reader.readAsDataURL(file)
 
-      const cloudName =
-        process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+      const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+      const preset    = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
 
-      const preset =
-        process.env.NEXT_PUBLIC_CLOUDINARY_PRESET
-
-      if (cloudName && preset) {
-        const fd = new FormData()
-
-        fd.append('file', file)
-        fd.append('upload_preset', preset)
-        fd.append('folder', 'marketing-racks/job-orders')
-
-        const res = await fetch(
-          `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-          {
-            method: 'POST',
-            body: fd,
-          },
-        )
-
-        if (!res.ok) {
-          throw new Error('Cloudinary upload failed')
-        }
-
-        const json = await res.json()
-
-        setActualPhoto({
-          url: json.secure_url,
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          uploadedAt: new Date().toISOString(),
-        })
-      } else {
-        /*
-         * Fallback when Cloudinary environment variables
-         * are not configured.
-         *
-         * The preview will still work locally.
-         */
-        const localPreview = URL.createObjectURL(file)
-
-        setPhotoPreview(localPreview)
-
-        setActualPhoto({
-          url: localPreview,
-          name: file.name,
-          size: file.size,
-          type: file.type,
-          uploadedAt: new Date().toISOString(),
-        })
+      if (!cloudName || !preset) {
+        throw new Error('Cloudinary is not configured. Please contact IT support.')
       }
-    } catch (error) {
+
+      const fd = new FormData()
+      fd.append('file', file)
+      fd.append('upload_preset', preset)
+      fd.append('folder', 'marketing-racks/job-orders')
+
+      const res  = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: fd })
+      const json = await res.json()
+
+      if (!res.ok || !json.secure_url) {
+        throw new Error(json?.error?.message || 'Upload failed — no URL returned by Cloudinary')
+      }
+
+      setActualPhoto({
+        url: json.secure_url,
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        uploadedAt: new Date().toISOString(),
+      })
+    } catch (error: any) {
       console.error('[NewJobOrderPage] Photo upload failed:', error)
-      toast.error('Photo upload failed')
+      toast.error(error?.message ?? 'Photo upload failed')
+      setActualPhoto(null)
+      setPhotoPreview(null)
     } finally {
       setPhotoUploading(false)
     }

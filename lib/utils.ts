@@ -99,3 +99,37 @@ export async function uploadToCloudinary(
 }
 
 export const CHART_COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316']
+
+// ── PDF image embedding ──────────────────────────────────
+// Fetches an (external) image URL and converts it to a base64 data URL so
+// it can be embedded directly into a jsPDF document via doc.addImage().
+// Returns null on any failure so callers can fall back to text-only output
+// instead of breaking PDF generation.
+export async function fetchImageAsDataUrl(
+  url: string
+): Promise<{ dataUrl: string; format: 'PNG' | 'JPEG'; width: number; height: number } | null> {
+  try {
+    const res = await fetch(url)
+    if (!res.ok) return null
+    const blob = await res.blob()
+    const format: 'PNG' | 'JPEG' = blob.type.includes('png') ? 'PNG' : 'JPEG'
+
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onloadend = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(blob)
+    })
+
+    const { width, height } = await new Promise<{ width: number; height: number }>((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight })
+      img.onerror = reject
+      img.src = dataUrl
+    })
+
+    return { dataUrl, format, width, height }
+  } catch {
+    return null
+  }
+}

@@ -15,6 +15,7 @@ import type {
 import { PROJECT_STATUS_OPTIONS } from '@/types'
 import dayjs from 'dayjs'
 import { notificationService } from './notificationService'
+import { inventoryService } from './inventoryService'
 
 function ts(v: any): string {
   if (!v) return ''
@@ -458,73 +459,105 @@ export const requestService = {
   },
 
   async updateProjectStatus(params: {
-    requestId: string
-    projectStatus: ProjectStatus
-    updatedById: string
-    updatedByName: string
-    updatedByRole: string
-  }): Promise<void> {
-    if (!PROJECT_STATUS_OPTIONS.includes(params.projectStatus)) {
-      throw new Error('Invalid project status value')
+  requestId: string
+  projectStatus: ProjectStatus
+  updatedById: string
+  updatedByName: string
+  updatedByRole: string
+}): Promise<void> {
+  if (!PROJECT_STATUS_OPTIONS.includes(params.projectStatus)) {
+    throw new Error('Invalid project status value')
+  }
+
+  const snap = await getDoc(doc(db, COLLECTIONS.REQUESTS, params.requestId))
+  if (!snap.exists()) throw new Error('Request not found')
+
+  const data = snap.data()
+  const previousProjectStatus =
+    typeof data.projectStatus === 'string' && data.projectStatus.trim()
+      ? data.projectStatus
+      : 'Not Set'
+
+  if (previousProjectStatus === params.projectStatus) return
+
+  const requestNo = data.jobOrderNo ?? data.requestNo ?? 'Unknown Request'
+
+  const existingActivityLog: ActivityLog[] = Array.isArray(data.activityLog)
+    ? data.activityLog
+    : []
+
+  const logEntry: ActivityLog = {
+    id: crypto.randomUUID(),
+    action: 'Project Status Updated',
+    userId: params.updatedById,
+    userName: params.updatedByName,
+    details: `From: ${previousProjectStatus}\nTo: ${params.projectStatus}\nUpdated By: ${params.updatedByRole}`,
+    timestamp: new Date().toISOString(),
+  }
+
+  const rawPayload = {
+    projectStatus: params.projectStatus,
+    activityLog: [...existingActivityLog, logEntry],
+    updatedAt: serverTimestamp(),
+  }
+
+  const cleanData = sanitizeFirestoreUpdate(rawPayload)
+
+  console.log('[requestService.updateProjectStatus] payload:', {
+    requestId: params.requestId,
+    previousProjectStatus,
+    nextProjectStatus: params.projectStatus,
+    updatedById: params.updatedById,
+    updatedByName: params.updatedByName,
+  })
+
+  await updateDoc(doc(db, COLLECTIONS.REQUESTS, params.requestId), cleanData)
+
+  // Auto-create Rack Inventory entries the moment a request becomes
+  // "Completed" — one inventory record per requestDetails row, since a
+  // single job order can involve several distinct rack items (e.g. Wall,
+  // Island, Platform types). Guarded by the "previous status wasn't already
+  // Completed" check above so this never fires twice for the same request.
+  if (params.projectStatus === 'Completed') {
+    const requestDetails = Array.isArray(data.requestDetails) ? data.requestDetails : []
+    const branchLocation = typeof data.branchLocation === 'string' ? data.branchLocation : ''
+    const dealer = typeof data.dealer === 'string' ? data.dealer : ''
+
+    try {
+      await Promise.all(requestDetails.map((row: any) =>
+        inventoryService.create({
+          rackType: row.category,
+          locationStore: branchLocation || '—',
+          branch: dealer,
+          status: 'In Use',
+          condition: 'Good',
+          installationStatus: 'Installed',
+          notes: `Auto-created from Job Order ${requestNo}. Mounting type: ${row.rackType || '—'}, Qty: ${row.quantity ?? '—'}${row.remarks ? `, Remarks: ${row.remarks}` : ''}`,
+          photoUrl: '',
+          photoPublicId: '',
+        })
+      ))
+    } catch (error) {
+      // Non-blocking: don't let inventory creation failure undo the
+      // already-successful project status update.
+      console.error('[requestService.updateProjectStatus] auto rack creation failed:', error)
     }
+  }
 
-    const snap = await getDoc(doc(db, COLLECTIONS.REQUESTS, params.requestId))
-    if (!snap.exists()) throw new Error('Request not found')
+  const requesterId = data.requestedBy
 
-    const data = snap.data()
-    const previousProjectStatus =
-      typeof data.projectStatus === 'string' && data.projectStatus.trim()
-        ? data.projectStatus
-        : 'Not Set'
-
-    if (previousProjectStatus === params.projectStatus) return
-
-    const existingActivityLog: ActivityLog[] = Array.isArray(data.activityLog)
-      ? data.activityLog
-      : []
-
-    const logEntry: ActivityLog = {
-      id: crypto.randomUUID(),
-      action: 'Project Status Updated',
-      userId: params.updatedById,
-      userName: params.updatedByName,
-      details: `From: ${previousProjectStatus}\nTo: ${params.projectStatus}\nUpdated By: ${params.updatedByRole}`,
-      timestamp: new Date().toISOString(),
-    }
-
-    const rawPayload = {
-      projectStatus: params.projectStatus,
-      activityLog: [...existingActivityLog, logEntry],
-      updatedAt: serverTimestamp(),
-    }
-
-    const cleanData = sanitizeFirestoreUpdate(rawPayload)
-
-    console.log('[requestService.updateProjectStatus] payload:', {
-      requestId: params.requestId,
-      previousProjectStatus,
-      nextProjectStatus: params.projectStatus,
-      updatedById: params.updatedById,
-      updatedByName: params.updatedByName,
+  if (typeof requesterId === 'string' && requesterId) {
+    await notificationService.create({
+      userId: requesterId,
+      title: `Your Job Order ${requestNo} project status has been updated to '${params.projectStatus}'.`,
+      body: `Updated by: ${params.updatedByName}`,
+      type: 'info',
+      refId: params.requestId,
+      refNo: requestNo,
+      read: false,
     })
-
-    await updateDoc(doc(db, COLLECTIONS.REQUESTS, params.requestId), cleanData)
-
-    const requesterId = data.requestedBy
-    const requestNo = data.jobOrderNo ?? data.requestNo ?? 'Unknown Request'
-
-    if (typeof requesterId === 'string' && requesterId) {
-      await notificationService.create({
-        userId: requesterId,
-        title: `Your Job Order ${requestNo} project status has been updated to '${params.projectStatus}'.`,
-        body: `Updated by: ${params.updatedByName}`,
-        type: 'info',
-        refId: params.requestId,
-        refNo: requestNo,
-        read: false,
-      })
-    }
-  },
+  }
+},
 
   async addComment(id: string, comment: Omit<RequestComment, 'id' | 'createdAt'>): Promise<void> {
     const snap = await getDoc(doc(db, COLLECTIONS.REQUESTS, id))

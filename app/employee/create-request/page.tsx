@@ -100,32 +100,56 @@ export default function CreateRequestPage() {
   const removeRow = (idx: number) => setRows(p => p.filter((_, i) => i !== idx))
 
   const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-    if (!['image/png','image/jpg','image/jpeg'].includes(file.type)) {
-      toast.error('Only PNG/JPG images allowed'); return
-    }
-    if (file.size > 10 * 1024 * 1024) { toast.error('Image must be under 10 MB'); return }
-    setPhotoUploading(true)
-    try {
-      const reader = new FileReader()
-      reader.onload = ev => setPhotoPreview(ev.target?.result as string)
-      reader.readAsDataURL(file)
-      const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
-      const preset    = process.env.NEXT_PUBLIC_CLOUDINARY_PRESET
-      if (cloudName && preset) {
-        const fd = new FormData()
-        fd.append('file', file); fd.append('upload_preset', preset)
-        fd.append('folder', 'marketing-racks/job-orders')
-        const res  = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method:'POST', body:fd })
-        const json = await res.json()
-        setActualPhoto({ url: json.secure_url, name: file.name, size: file.size, type: file.type, uploadedAt: new Date().toISOString() })
-      } else {
-        setActualPhoto({ url: photoPreview ?? '', name: file.name, size: file.size, type: file.type, uploadedAt: new Date().toISOString() })
-      }
-    } catch { toast.error('Photo upload failed') }
-    finally { setPhotoUploading(false) }
+  const file = e.target.files?.[0]
+  if (!file) return
+  if (!['image/png','image/jpg','image/jpeg'].includes(file.type)) {
+    toast.error('Only PNG/JPG images allowed'); return
   }
+  if (file.size > 10 * 1024 * 1024) { toast.error('Image must be under 10 MB'); return }
+
+  setPhotoUploading(true)
+  try {
+    // Local preview only — this is never saved as the actual attachment URL.
+    const reader = new FileReader()
+    reader.onload = ev => setPhotoPreview(ev.target?.result as string)
+    reader.readAsDataURL(file)
+
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+    const preset    = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
+
+    if (!cloudName || !preset) {
+      throw new Error('Cloudinary is not configured. Please contact IT support.')
+    }
+
+    const fd = new FormData()
+    fd.append('file', file)
+    fd.append('upload_preset', preset)
+    fd.append('folder', 'marketing-racks/job-orders')
+
+    const res  = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, { method: 'POST', body: fd })
+    const json = await res.json()
+
+    // Guard: never silently accept a missing URL. This is what previously
+    // let requests get saved with a blank attachments.actualPhoto.url.
+    if (!res.ok || !json.secure_url) {
+      throw new Error(json?.error?.message || 'Upload failed — no URL returned by Cloudinary')
+    }
+
+    setActualPhoto({
+      url: json.secure_url,
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      uploadedAt: new Date().toISOString(),
+    })
+  } catch (err: any) {
+    toast.error(err.message ?? 'Photo upload failed')
+    setActualPhoto(null)
+    setPhotoPreview(null)
+  } finally {
+    setPhotoUploading(false)
+  }
+}
 
   const validateStep1 = () => {
     if (!form.date)              { toast.error('Date is required'); return false }
