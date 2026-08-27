@@ -20,7 +20,7 @@ const LOCATIONS = ['Abenson QC','SM Megamall','Robinsons Manila','SM North EDSA'
 type InventoryForm = Omit<RackInventory, 'id' | 'rackNo' | 'lastUpdated' | 'history' | 'createdAt'>
 
 const EMPTY_FORM: InventoryForm = {
-  rackType: 'Refrigerator', locationStore: '', branch: '',
+  rackType: 'Wall', locationStore: '', branch: '',
   status: 'Available', condition: 'Good',
   installationStatus: 'Not Installed', notes: '', photoUrl: '', photoPublicId: '',
    vendor: '', priceAmount: undefined,
