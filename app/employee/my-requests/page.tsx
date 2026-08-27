@@ -91,6 +91,8 @@ function MyRequestsContent() {
                   <th>Product Category</th>
                   <th>Dealer</th>
                   <th>Branch / Store</th>
+                  <th>Vendor</th>
+                  <th>Price / Amount</th>
                   <th>Status</th>
                   <th>Project Status</th>
                   <th>Items</th>
@@ -100,9 +102,9 @@ function MyRequestsContent() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={9}><TableSkeleton rows={6} cols={9} /></td></tr>
+                  <tr><td colSpan={11}><TableSkeleton rows={6} cols={11} /></td></tr>
                 ) : paged.length === 0 ? (
-                  <tr><td colSpan={9}>
+                  <tr><td colSpan={11}>
                     <EmptyState icon={ClipboardList}
                       title={tab === 'All' ? 'No requests yet' : `No ${tab} requests`}
                       message="Create your first job order request."
@@ -121,7 +123,11 @@ function MyRequestsContent() {
                     </td>
                     <td className="text-sm text-slate-600">{req.dealer || '—'}</td>
                     <td className="text-sm text-slate-600">{req.branchLocation}</td>
-                    <td><StatusBadge status={req.status} type="request" /></td>
+                      <td className="text-sm text-slate-600">{req.vendorName || '—'}</td>
+                      <td className="text-sm text-slate-600">
+                        {typeof req.projectAmount === 'number' ? `₱${req.projectAmount.toLocaleString()}` : '—'}
+                      </td>
+                      <td><StatusBadge status={req.status} type="request" /></td>
                     <td>
                       <span className="status-badge bg-slate-50 text-slate-700 max-w-[320px] whitespace-normal leading-tight">
                         {req.projectStatus ?? 'Not Set'}

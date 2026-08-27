@@ -23,6 +23,7 @@ const EMPTY_FORM: InventoryForm = {
   rackType: 'Refrigerator', locationStore: '', branch: '',
   status: 'Available', condition: 'Good',
   installationStatus: 'Not Installed', notes: '', photoUrl: '', photoPublicId: '',
+   vendor: '', priceAmount: undefined,
 }
 
 export default function InventoryPage() {
@@ -49,6 +50,7 @@ export default function InventoryPage() {
   const [deleting, setDeleting]   = useState(false)
   const [detailRack, setDetail]   = useState<RackInventory | null>(null)
   const [openMenu, setOpenMenu]   = useState<string | null>(null)
+  const [savingRackId, setSavingRackId] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -62,13 +64,14 @@ export default function InventoryPage() {
   const totalPages = Math.ceil(racks.length / pageSize)
 
   const openCreate = () => { setEditing(null); setForm(EMPTY_FORM); setModalOpen(true) }
-  const openEdit   = (r: RackInventory) => {
-    setEditing(r)
-    setForm({ rackType: r.rackType, locationStore: r.locationStore, branch: r.branch,
-      status: r.status, condition: r.condition, installationStatus: r.installationStatus,
-      notes: r.notes ?? '', photoUrl: r.photoUrl ?? '', photoPublicId: r.photoPublicId ?? '' })
-    setModalOpen(true)
-  }
+  const openEdit = (r: RackInventory) => {
+  setEditing(r)
+  setForm({ rackType: r.rackType, locationStore: r.locationStore, branch: r.branch,
+    status: r.status, condition: r.condition, installationStatus: r.installationStatus,
+    notes: r.notes ?? '', photoUrl: r.photoUrl ?? '', photoPublicId: r.photoPublicId ?? '',
+    vendor: r.vendor ?? '', priceAmount: r.priceAmount })
+  setModalOpen(true)
+}
 
   const handleSave = async () => {
     if (!form.locationStore) { toast.error('Location is required'); return }
@@ -93,6 +96,32 @@ export default function InventoryPage() {
     catch { toast.error('Failed') }
     finally { setDeleting(false); setDeleteId(null) }
   }
+
+  const handleRackInfoBlur = async (
+  rack: RackInventory,
+  patch: { vendor?: string; priceAmount?: number }
+) => {
+  if (!user) return
+  const nextVendor = patch.vendor !== undefined ? patch.vendor : (rack.vendor ?? '')
+  const nextPrice  = patch.priceAmount !== undefined ? patch.priceAmount : rack.priceAmount
+
+  if (nextVendor === (rack.vendor ?? '') && nextPrice === rack.priceAmount) return
+
+  setSavingRackId(rack.id)
+  try {
+    await inventoryService.update(
+      rack.id,
+      { vendor: nextVendor, priceAmount: nextPrice },
+      { action: 'Vendor/Price Updated', details: `Vendor: ${nextVendor || '—'}, Price: ${nextPrice ?? '—'}`, userId: user.uid, userName: user.fullName }
+    )
+    setRacks(prev => prev.map(r => r.id === rack.id ? { ...r, vendor: nextVendor, priceAmount: nextPrice } : r))
+    toast.success('Saved')
+  } catch {
+    toast.error('Failed to save')
+  } finally {
+    setSavingRackId(null)
+  }
+}
 
   const F = (k: keyof typeof EMPTY_FORM) => (e: any) => setForm(p => ({ ...p, [k]: e.target.value }))
 
@@ -136,12 +165,13 @@ export default function InventoryPage() {
               <thead>
                 <tr>
                   <th>Rack ID</th><th>Rack Type</th><th>Location / Store</th>
+                  <th>Vendor</th><th>Price / Amount</th>
                   <th>Status</th><th>Condition</th><th>Last Updated</th><th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={7}><TableSkeleton rows={8} cols={7} /></td></tr>
+                  <tr><td colSpan={9}><TableSkeleton rows={8} cols={9} /></td></tr>
                 ) : paged.length === 0 ? (
                   <tr><td colSpan={7}>
                     <EmptyState icon={Package} title="No racks found"
@@ -157,10 +187,42 @@ export default function InventoryPage() {
                     </td>
                     <td className="text-sm text-slate-700">{rack.rackType}</td>
                     <td>
-                      <p className="text-sm text-slate-700">{rack.locationStore}</p>
-                      <p className="text-[11px] text-slate-400">{rack.branch}</p>
-                    </td>
-                    <td><StatusBadge status={rack.status} type="rack" /></td>
+                        <p className="text-sm text-slate-700">{rack.locationStore}</p>
+                        <p className="text-[11px] text-slate-400">{rack.branch}</p>
+                      </td>
+                      <td>
+                        {isAdmin ? (
+                          <input
+                            type="text"
+                            defaultValue={rack.vendor ?? ''}
+                            placeholder="Enter vendor"
+                            disabled={savingRackId === rack.id}
+                            className="field-sm w-28"
+                            onBlur={e => handleRackInfoBlur(rack, { vendor: e.target.value })}
+                          />
+                        ) : (
+                          <span className="text-sm text-slate-600">{rack.vendor || '—'}</span>
+                        )}
+                      </td>
+                      <td>
+                        {isAdmin ? (
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            defaultValue={rack.priceAmount ?? ''}
+                            placeholder="0.00"
+                            disabled={savingRackId === rack.id}
+                            className="field-sm w-24"
+                            onBlur={e => handleRackInfoBlur(rack, { priceAmount: e.target.value === '' ? undefined : Number(e.target.value) })}
+                          />
+                        ) : (
+                          <span className="text-sm text-slate-600">
+                            {typeof rack.priceAmount === 'number' ? `₱${rack.priceAmount.toLocaleString()}` : '—'}
+                          </span>
+                        )}
+                      </td>
+                      <td><StatusBadge status={rack.status} type="rack" /></td>
                     <td>
                       <span className={cn('text-xs font-semibold', conditionColor[rack.condition])}>
                         {rack.condition}
@@ -287,6 +349,16 @@ export default function InventoryPage() {
             <div>
               <label className="field-label">Branch</label>
               <input value={form.branch} onChange={F('branch')} placeholder="Branch name" className="field" />
+            </div>
+            <div>
+              <label className="field-label">Vendor</label>
+              <input value={form.vendor ?? ''} onChange={F('vendor')} placeholder="Vendor name" className="field" />
+            </div>
+            <div>
+              <label className="field-label">Price / Amount</label>
+              <input type="number" min={0} step="0.01" value={form.priceAmount ?? ''}
+                onChange={e => setForm(p => ({ ...p, priceAmount: e.target.value === '' ? undefined : Number(e.target.value) }))}
+                placeholder="0.00" className="field" />
             </div>
             <div>
               <label className="field-label">Condition *</label>

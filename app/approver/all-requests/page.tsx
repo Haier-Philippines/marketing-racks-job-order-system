@@ -15,7 +15,16 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 
 const STATUS_OPTS: RequestStatus[] = ['For Approval','In Progress','Approved','Completed','Rejected','Cancelled','Returned']
-
+// Vendor/Amount can only be filled in once the project has reached the
+// budget-approval stage or later — before that, the numbers aren't final.
+const BUDGET_GATE_INDEX = PROJECT_STATUS_OPTIONS.indexOf(
+  'Processing Budget Approval (Document, PFF, BRF, & MAF)'
+)
+function canEditVendorInfo(projectStatus?: string | null): boolean {
+  if (!projectStatus) return false
+  const idx = PROJECT_STATUS_OPTIONS.indexOf(projectStatus as any)
+  return idx !== -1 && idx >= BUDGET_GATE_INDEX
+}
 export default function AllRequestsPage() {
   const { user }              = useAuthStore()
   const [reqs, setReqs]       = useState<JobOrderRequest[]>([])
@@ -27,6 +36,7 @@ export default function AllRequestsPage() {
   const [page, setPage]       = useState(1)
   const [reviewReq, setReviewReq] = useState<JobOrderRequest | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [savingVendorId, setSavingVendorId] = useState<string | null>(null)
   const [pendingProjectStatusUpdate, setPendingProjectStatusUpdate] = useState<{
     requestId: string
     requestNo: string
@@ -99,6 +109,28 @@ export default function AllRequestsPage() {
     }
   }
 
+  const handleVendorInfoBlur = async (
+  req: JobOrderRequest,
+  patch: { vendorName?: string; projectAmount?: number }
+) => {
+  if (!user) return
+  const nextVendor = patch.vendorName !== undefined ? patch.vendorName : (req.vendorName ?? '')
+  const nextAmount = patch.projectAmount !== undefined ? patch.projectAmount : req.projectAmount
+
+  if (nextVendor === (req.vendorName ?? '') && nextAmount === req.projectAmount) return
+
+  setSavingVendorId(req.id)
+  try {
+    await requestService.update(req.id, { vendorName: nextVendor, projectAmount: nextAmount })
+    setReqs(prev => prev.map(r => r.id === req.id ? { ...r, vendorName: nextVendor, projectAmount: nextAmount } : r))
+    toast.success('Saved')
+  } catch (error: any) {
+    toast.error(error?.message ?? 'Failed to save')
+  } finally {
+    setSavingVendorId(null)
+  }
+}
+
   const filtered = reqs.filter(r => {
     const ms = r.jobOrderNo.toLowerCase().includes(search.toLowerCase()) ||
       r.productCategory.toLowerCase().includes(search.toLowerCase()) ||
@@ -157,6 +189,8 @@ export default function AllRequestsPage() {
                   <th>Product Category</th>
                   <th>Dealer</th>
                   <th>Branch / Store</th>
+                  <th>Vendor</th>
+                  <th>Price / Amount</th>
                   <th>Status</th>
                   <th>Project Status</th>
                   <th>Date Requested</th>
@@ -182,7 +216,43 @@ export default function AllRequestsPage() {
                     <td className="text-sm text-slate-700">{req.productCategory || '—'}</td>
                     <td className="text-sm text-slate-700">{req.dealer || '—'}</td>
                     <td className="text-sm text-slate-600">{req.branchLocation}</td>
-                    <td><StatusBadge status={req.status} type="request" /></td>
+                      <td>
+                        {isMarketingManager && canEditVendorInfo(req.projectStatus) ? (
+                          <input
+                            type="text"
+                            defaultValue={req.vendorName ?? ''}
+                            placeholder="Enter vendor"
+                            disabled={savingVendorId === req.id}
+                            className="field-sm w-32"
+                            onBlur={e => handleVendorInfoBlur(req, { vendorName: e.target.value })}
+                          />
+                        ) : isMarketingManager ? (
+                          <span className="text-xs text-slate-400 italic">Available after Budget Approval</span>
+                        ) : (
+                          <span className="text-sm text-slate-600">{req.vendorName || '—'}</span>
+                        )}
+                      </td>
+                      <td>
+                        {isMarketingManager && canEditVendorInfo(req.projectStatus) ? (
+                          <input
+                            type="number"
+                            min={0}
+                            step="0.01"
+                            defaultValue={req.projectAmount ?? ''}
+                            placeholder="0.00"
+                            disabled={savingVendorId === req.id}
+                            className="field-sm w-28"
+                            onBlur={e => handleVendorInfoBlur(req, { projectAmount: e.target.value === '' ? undefined : Number(e.target.value) })}
+                          />
+                        ) : isMarketingManager ? (
+                          <span className="text-xs text-slate-400 italic">—</span>
+                        ) : (
+                          <span className="text-sm text-slate-600">
+                            {typeof req.projectAmount === 'number' ? `₱${req.projectAmount.toLocaleString()}` : '—'}
+                          </span>
+                        )}
+                      </td>
+                      <td><StatusBadge status={req.status} type="request" /></td>
                     <td>
                       {isMarketingManager ? (
                         <select

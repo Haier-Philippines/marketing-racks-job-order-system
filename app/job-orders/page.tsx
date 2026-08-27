@@ -132,9 +132,12 @@ export default function JobOrdersPage() {
                   <th>Product Category</th>
                   <th>Dealer</th>
                   <th>Branch / Store</th>
+                  <th>Vendor</th>
+                  <th>Price / Amount</th>
                   <th>Target Date</th>
                   <th>Store Status</th>
                   <th>Items</th>
+                  
                   <th>Status</th>
                   <th>Date Created</th>
                   <th>Action</th>
@@ -167,6 +170,10 @@ export default function JobOrdersPage() {
                       <td className="text-sm text-slate-700">{req.productCategory || '—'}</td>
                       <td className="text-xs text-slate-500">{req.dealer || '—'}</td>
                       <td className="text-sm text-slate-700">{req.branchLocation}</td>
+                      <td className="text-xs text-slate-500">{req.vendorName || '—'}</td>
+                      <td className="text-sm text-slate-700">
+                        {typeof req.projectAmount === 'number' ? `₱${req.projectAmount.toLocaleString()}` : '—'}
+                      </td>
                       <td className="text-xs text-slate-500">{req.targetDate ? formatDate(req.targetDate) : '—'}</td>
                       <td>
                         <div className="flex flex-wrap gap-1">

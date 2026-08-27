@@ -96,6 +96,8 @@ function mapRequest(d: DocumentSnapshot): JobOrderRequest {
     // System fields
     status:          data.status       ?? 'For Approval',
     projectStatus:   parseProjectStatus(data.projectStatus),
+    vendorName:      data.vendorName ?? '',
+    projectAmount:   typeof data.projectAmount === 'number' ? data.projectAmount : undefined,
     requestedBy:     data.requestedBy  ?? '',
     requesterEmail:  data.requesterEmail ?? '',
     department:      data.department   ?? 'Others',

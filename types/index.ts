@@ -123,8 +123,7 @@ export const PM_DEPARTMENT_BY_CATEGORY: Record<PMCategory, Department> = {
 }
 
 export const RACK_CATEGORIES = [
-  'TV','Refrigerator','Air Conditioner','Washing Machine','KDA',
-  'CAC','Water Solutions'
+  'Wall','Island','Platform','Riser','Column','Other'
 ] as const
 export type RackCategory = typeof RACK_CATEGORIES[number]
 
@@ -264,6 +263,8 @@ export interface JobOrderRequest {
   // ── System / Approval fields ──
   status:          RequestStatus
   projectStatus?:  ProjectStatus
+  vendorName?:     string
+  projectAmount?:  number
   requestedBy:     string        // uid
   requesterEmail:  string
   department:      Department
@@ -343,6 +344,8 @@ export interface RackInventory {
   status:             RackStatus
   condition:          RackCondition
   installationStatus: 'Installed' | 'Not Installed' | 'In Transit'
+  vendor?:            string
+  priceAmount?:       number
   photoUrl?:          string
   photoPublicId?:     string
   notes?:             string
