@@ -95,7 +95,8 @@ export default function LoginPage() {
               </svg>
             </div>
             <h2 className="text-2xl font-bold text-slate-800 font-display">Welcome Back!</h2>
-            <p className="text-sm text-slate-500 mt-1">Sign in to continue to your account</p>
+            <p className="text-sm text-slate-500 mt-1"> Sign in to access the Marketing
+      Racks Job Order System</p>
           </div>
 
           {error && (
@@ -165,16 +166,17 @@ export default function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-6 p-4 rounded-xl bg-slate-50 border border-slate-200">
+          {/* <div className="mt-6 p-4 rounded-xl bg-slate-50 border border-slate-200">
             <p className="field-label mb-2">Demo Access</p>
             <div className="space-y-1 text-xs font-mono text-slate-500">
               <p>admin@haier.com / admin123</p>
               <p>manager@haier.com / pass123</p>
             </div>
-          </div>
+          </div> */}
 
           <p className="text-center text-xs text-slate-400 mt-6">
-            © {new Date().getFullYear()} Haier Philippines Inc. All rights reserved.
+            © {new Date().getFullYear()} Haier Philippines Inc.
+Developed by IT Local Team
           </p>
         </div>
       </div>
