@@ -528,13 +528,14 @@ export const requestService = {
     try {
       await Promise.all(requestDetails.map((row: any) =>
         inventoryService.create({
-          rackType: row.category,
+          productCategory: row.category,
+          rackType: row.rackType,
           locationStore: branchLocation || '—',
           branch: dealer,
           status: 'In Use',
           condition: 'Good',
           installationStatus: 'Installed',
-          notes: `Auto-created from Job Order ${requestNo}. Mounting type: ${row.rackType || '—'}, Qty: ${row.quantity ?? '—'}${row.remarks ? `, Remarks: ${row.remarks}` : ''}`,
+          notes: `Auto-created from Job Order ${requestNo}. Qty: ${row.quantity ?? '—'}${row.remarks ? `, Remarks: ${row.remarks}` : ''}`,
           photoUrl: '',
           photoPublicId: '',
         })

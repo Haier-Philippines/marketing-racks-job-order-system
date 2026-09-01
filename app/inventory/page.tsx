@@ -7,7 +7,7 @@ import { PageHeader, StatusBadge, SearchBar, EmptyState, TableSkeleton, Paginati
 import { inventoryService } from '@/services/index'
 import { useAuthStore } from '@/stores'
 import type { RackInventory, RackStatus, RackCondition } from '@/types'
-import { RACK_CATEGORIES } from '@/types'
+import { RACK_CATEGORIES, ROW_CATEGORIES } from '@/types'
 import { formatDate, cn } from '@/lib/utils'
 import { Plus, MoreVertical, Eye, Pencil, Trash2, RefreshCw, Package, Filter } from 'lucide-react'
 import { toast } from 'sonner'
@@ -20,10 +20,10 @@ const LOCATIONS = ['Abenson QC','SM Megamall','Robinsons Manila','SM North EDSA'
 type InventoryForm = Omit<RackInventory, 'id' | 'rackNo' | 'lastUpdated' | 'history' | 'createdAt'>
 
 const EMPTY_FORM: InventoryForm = {
-  rackType: 'Wall', locationStore: '', branch: '',
+  productCategory: 'Refrigerator', rackType: 'Wall', locationStore: '', branch: '',
   status: 'Available', condition: 'Good',
   installationStatus: 'Not Installed', notes: '', photoUrl: '', photoPublicId: '',
-   vendor: '', priceAmount: undefined,
+  vendor: '', priceAmount: undefined,
 }
 
 export default function InventoryPage() {
@@ -64,9 +64,9 @@ export default function InventoryPage() {
   const totalPages = Math.ceil(racks.length / pageSize)
 
   const openCreate = () => { setEditing(null); setForm(EMPTY_FORM); setModalOpen(true) }
-  const openEdit = (r: RackInventory) => {
+ const openEdit = (r: RackInventory) => {
   setEditing(r)
-  setForm({ rackType: r.rackType, locationStore: r.locationStore, branch: r.branch,
+  setForm({ productCategory: r.productCategory ?? '', rackType: r.rackType, locationStore: r.locationStore, branch: r.branch,
     status: r.status, condition: r.condition, installationStatus: r.installationStatus,
     notes: r.notes ?? '', photoUrl: r.photoUrl ?? '', photoPublicId: r.photoPublicId ?? '',
     vendor: r.vendor ?? '', priceAmount: r.priceAmount })
@@ -164,16 +164,17 @@ export default function InventoryPage() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Rack ID</th><th>Rack Type</th><th>Location / Store</th>
-                  <th>Vendor</th><th>Price / Amount</th>
+                  <th>Rack ID</th><th>Product Category</th><th>Rack Type</th>
+                  <th>Vendor</th><th>Location / Store</th>
+                  <th>Price / Amount</th>
                   <th>Status</th><th>Condition</th><th>Last Updated</th><th>Action</th>
                 </tr>
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={9}><TableSkeleton rows={8} cols={9} /></td></tr>
+                  <tr><td colSpan={10}><TableSkeleton rows={8} cols={10} /></td></tr>
                 ) : paged.length === 0 ? (
-                  <tr><td colSpan={7}>
+                  <tr><td colSpan={10}>
                     <EmptyState icon={Package} title="No racks found"
                       message="Add racks to the inventory to track them."
                       action={isAdmin ? <button onClick={openCreate} className="btn-primary btn-sm">Add Rack</button> : undefined} />
@@ -181,15 +182,12 @@ export default function InventoryPage() {
                 ) : paged.map(rack => (
                   <tr key={rack.id}>
                     <td>
-                      <button onClick={() => setDetail(rack)} className="font-bold text-xs text-brand-600 hover:underline font-mono">
-                        {rack.rackNo}
-                      </button>
-                    </td>
-                    <td className="text-sm text-slate-700">{rack.rackType}</td>
-                    <td>
-                        <p className="text-sm text-slate-700">{rack.locationStore}</p>
-                        <p className="text-[11px] text-slate-400">{rack.branch}</p>
+                        <button onClick={() => setDetail(rack)} className="font-bold text-xs text-brand-600 hover:underline font-mono">
+                          {rack.rackNo}
+                        </button>
                       </td>
+                      <td className="text-sm text-slate-700">{rack.productCategory || '—'}</td>
+                      <td className="text-sm text-slate-700">{rack.rackType}</td>
                       <td>
                         {isAdmin ? (
                           <input
@@ -205,11 +203,13 @@ export default function InventoryPage() {
                         )}
                       </td>
                       <td>
+                        <p className="text-sm text-slate-700">{rack.locationStore}</p>
+                        <p className="text-[11px] text-slate-400">{rack.branch}</p>
+                      </td>
+                      <td>
                         {isAdmin ? (
                           <input
-                            type="number"
-                            min={0}
-                            step="0.01"
+                            type="number" min={0} step="0.01"
                             defaultValue={rack.priceAmount ?? ''}
                             placeholder="0.00"
                             disabled={savingRackId === rack.id}
@@ -330,11 +330,18 @@ export default function InventoryPage() {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
+              <label className="field-label">Product Category *</label>
+              <select value={form.productCategory ?? ''} onChange={F('productCategory')} className="field">
+                {ROW_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
               <label className="field-label">Rack Type *</label>
               <select value={form.rackType} onChange={F('rackType')} className="field">
                 {RACK_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
+          
             <div>
               <label className="field-label">Status *</label>
               <select value={form.status} onChange={F('status')} className="field">

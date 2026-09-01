@@ -5,7 +5,7 @@ import EmployeeLayout from '@/components/shared/EmployeeLayout'
 import { StatusBadge, SearchBar, EmptyState, TableSkeleton, Pagination } from '@/components/ui/index'
 import { inventoryService } from '@/services/index'
 import type { RackInventory } from '@/types'
-import { RACK_CATEGORIES } from '@/types'
+import { RACK_CATEGORIES, ROW_CATEGORIES } from '@/types'
 import { formatDate, cn } from '@/lib/utils'
 import { Package, RefreshCw, Eye } from 'lucide-react'
 import { Modal } from '@/components/ui/index'
@@ -90,6 +90,7 @@ export default function EmployeeInventoryPage() {
               <thead>
                 <tr>
                   <th>Rack ID</th>
+                  <th>Product Category</th>
                   <th>Rack Type</th>
                   <th>Location / Store</th>
                   <th>Vendor</th>
@@ -101,29 +102,30 @@ export default function EmployeeInventoryPage() {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr><td colSpan={8}><TableSkeleton rows={8} cols={8} /></td></tr>
+                  <tr><td colSpan={9}><TableSkeleton rows={8} cols={9} /></td></tr>
                 ) : paged.length === 0 ? (
-                  <tr><td colSpan={6}>
+                  <tr><td colSpan={9}>
                     <EmptyState icon={Package} title="No racks found" message="Try adjusting your search filters." />
                   </td></tr>
                 ) : paged.map(rack => (
                   <tr key={rack.id} className="cursor-pointer" onClick={() => setDetail(rack)}>
                     <td>
-                      <span className="font-bold text-xs text-brand-600 font-mono">{rack.rackNo}</span>
-                    </td>
-                    <td className="text-sm text-slate-700">{rack.rackType}</td>
-                    <td>
-                          <p className="text-sm text-slate-700">{rack.locationStore}</p>
-                          {rack.branch && <p className="text-[11px] text-slate-400">{rack.branch}</p>}
-                        </td>
-                        <td className="text-sm text-slate-600">{rack.vendor || '—'}</td>
-                        <td className="text-sm text-slate-600">
-                          {typeof rack.priceAmount === 'number' ? `₱${rack.priceAmount.toLocaleString()}` : '—'}
-                        </td>
-                        <td>
-                          <span className={cn('status-badge text-[11px]', statusColor[rack.status] ?? 'bg-slate-50 text-slate-600')}>
-                        {rack.status}
-                      </span>
+                        <span className="font-bold text-xs text-brand-600 font-mono">{rack.rackNo}</span>
+                      </td>
+                      <td className="text-sm text-slate-700">{rack.productCategory || '—'}</td>
+                      <td className="text-sm text-slate-700">{rack.rackType}</td>
+                      <td className="text-sm text-slate-600">{rack.vendor || '—'}</td>
+                      <td>
+                        <p className="text-sm text-slate-700">{rack.locationStore}</p>
+                        {rack.branch && <p className="text-[11px] text-slate-400">{rack.branch}</p>}
+                      </td>
+                      <td className="text-sm text-slate-600">
+                        {typeof rack.priceAmount === 'number' ? `₱${rack.priceAmount.toLocaleString()}` : '—'}
+                      </td>
+                      <td>
+                        <span className={cn('status-badge text-[11px]', statusColor[rack.status] ?? 'bg-slate-50 text-slate-600')}>
+                          {rack.status}
+                        </span>
                     </td>
                     <td>
                       <span className={cn('text-xs font-semibold', conditionColor(rack.condition))}>

@@ -338,7 +338,8 @@ export type RackCondition = 'Good' | 'Fair' | 'Poor'
 export interface RackInventory {
   id:                 string
   rackNo:             string       // RCK-0001
-  rackType:           RackCategory
+  productCategory?:   string       // e.g. "Refrigerator" — the appliance type
+  rackType:           RackCategory // e.g. "Wall" — the mounting/structure type
   locationStore:      string
   branch:             string
   status:             RackStatus
